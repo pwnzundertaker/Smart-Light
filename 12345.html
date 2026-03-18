@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Умный свет — Безопасный город</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Manrope:wght@400;500;600&family=Golos+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  /* Landing */
+  --bg:#f5f0e8;
+  --bg2:#ffffff;
+  --bg3:#eee8d8;
+  --accent:#f59e0b;
+  --accent2:#ef4444;
+  --accent3:#10b981;
+  --blue:#3b82f6;
+  --text:#1a1a2e;
+  --muted:#64748b;
+  --border:rgba(0,0,0,0.1);
+  --glow:rgba(245,158,11,0.15);
+  /* Portal */
+  --p-bg:#f8f4ed;
+  --p-surface:#ffffff;
+  --p-surface2:#f0ebe0;
+  --p-border:#d4c9b0;
+  --p-accent:#2ea043;
+  --p-accent2:#1f6feb;
+  --p-text:#1a1a2e;
+  --p-text2:#64748b;
+  --p-danger:#f85149;
+  --p-warn:#d29922;
+  --p-radius:12px;
+  --font-display:'Unbounded',sans-serif;
+  --font-body:'Golos Text','Manrope',sans-serif;
+}
+
+body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ══════ SCREEN SWITCH ══════ */
+#screen-landing{display:block}
+#screen-portal{display:none}
+#screen-admin{display:none}
+
+/* ══════════════════════════════
+   LANDING THEMATIC BACKGROUND
+══════════════════════════════ */
+.bg-scene {
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  pointer-events:none;z-index:0;
+  overflow:hidden;
+}
+.bg-scene svg { width:100%;height:100%; }
+
+/* ══════ HEADER ══════ */
+header {
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  background:rgba(245,240,232,0.94);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  padding:0 2rem;height:64px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.logo{font-family:'Unbounded',sans-serif;font-size:1.05rem;font-weight:700;display:flex;align-items:center;gap:10px;color:var(--text);text-decoration:none;}
+.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+nav{display:flex;gap:8px;}
+nav button{background:transparent;border:1px solid var(--border);color:var(--muted);padding:6px 16px;border-radius:8px;font-family:'Manrope',sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s;}
+nav button:hover,nav button.active{background:var(--glow);border-color:var(--accent);color:var(--accent);}
+.header-right{display:flex;align-items:center;gap:10px;}
+.live-badge{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--accent3);font-weight:600;}
+.live-dot{width:7px;height:7px;background:var(--accent3);border-radius:50%;animation:pulseDot 1.5s infinite;}
+@keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+.header-login-btn{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.03em;}
+.header-login-btn:hover{background:#d97706;transform:translateY(-1px);}
+
+/* ══════ HERO ══════ */
+.hero{padding:110px 2rem 50px;text-align:center;position:relative;z-index:1;}
+.hero::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:600px;height:300px;background:radial-gradient(ellipse,rgba(245,158,11,.18) 0%,transparent 70%);pointer-events:none;}
+.hero-tag{display:inline-flex;align-items:center;gap:8px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);color:#d97706;font-size:12px;font-weight:600;padding:6px 14px;border-radius:100px;margin-bottom:24px;letter-spacing:.05em;text-transform:uppercase;}
+h1{font-family:'Unbounded',sans-serif;font-size:clamp(1.8rem,5vw,3.2rem);font-weight:700;line-height:1.15;margin-bottom:20px;color:var(--text);}
+h1 span{color:var(--accent);}
+.hero-sub{font-size:1rem;color:var(--muted);max-width:560px;margin:0 auto 40px;line-height:1.7;}
+.hero-stats{display:flex;justify-content:center;gap:40px;flex-wrap:wrap;}
+.stat{text-align:center;}
+.stat-num{font-family:'Unbounded',sans-serif;font-size:1.8rem;font-weight:700;color:var(--text);display:block;}
+.stat-label{font-size:12px;color:var(--muted);}
+
+/* ══════ MAIN APP LAYOUT ══════ */
+.app{max-width:1400px;margin:0 auto;padding:0 1.5rem 3rem;display:grid;grid-template-columns:320px 1fr;gap:1.5rem;position:relative;z-index:1;}
+.sidebar{display:flex;flex-direction:column;gap:1rem;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:1.25rem;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+.card-title{font-family:'Unbounded',sans-serif;font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem;}
+.filter-group{display:flex;flex-direction:column;gap:8px;}
+.filter-btn{display:flex;align-items:center;gap:10px;background:transparent;border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-family:'Manrope',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;width:100%;text-align:left;}
+.filter-btn:hover{background:rgba(245,158,11,.06);border-color:var(--accent);}
+.filter-btn.active{border-color:var(--accent);background:rgba(245,158,11,.1);}
+.filter-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.filter-count{margin-left:auto;background:var(--bg3);color:var(--muted);font-size:11px;padding:2px 8px;border-radius:100px;}
+.incidents{display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;}
+.incident{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .2s;border-left:3px solid transparent;}
+.incident:hover{border-color:var(--blue);}
+.incident.danger{border-left-color:var(--accent2);}
+.incident.warning{border-left-color:var(--accent);}
+.incident.safe{border-left-color:var(--accent3);}
+.incident-top{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.incident-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;text-transform:uppercase;letter-spacing:.05em;}
+.badge-danger{background:rgba(239,68,68,.12);color:var(--accent2);}
+.badge-warning{background:rgba(245,158,11,.12);color:#d97706;}
+.badge-safe{background:rgba(16,185,129,.12);color:var(--accent3);}
+.incident-name{font-size:13px;font-weight:600;}
+.incident-desc{font-size:11px;color:var(--muted);}
+.incident-time{font-size:10px;color:var(--muted);margin-top:2px;}
+.report-form{display:flex;flex-direction:column;gap:10px;}
+.form-input{background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Manrope',sans-serif;font-size:13px;padding:10px 14px;width:100%;outline:none;transition:border-color .2s;}
+.form-input:focus{border-color:var(--accent);}
+.form-input::placeholder{color:var(--muted);}
+select.form-input option{background:#fff;}
+.btn-report{background:var(--accent);color:#fff;border:none;border-radius:10px;padding:11px 16px;font-family:'Unbounded',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;width:100%;letter-spacing:.03em;}
+.btn-report:hover{background:#d97706;transform:translateY(-1px);}
+
+/* ══════ LANDING MAP ══════ */
+.map-container{border-radius:16px;overflow:hidden;border:1px solid var(--border);position:relative;box-shadow:0 4px 20px rgba(0,0,0,.08);}
+#map-landing{height:660px;width:100%;}
+.map-overlay{position:absolute;bottom:16px;left:16px;z-index:500;background:rgba(255,252,245,.92);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;gap:16px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+.legend-dot{width:10px;height:10px;border-radius:50%;}
+.map-toolbar{position:absolute;top:16px;right:16px;z-index:500;display:flex;flex-direction:column;gap:6px;}
+.map-btn{background:rgba(255,252,245,.92);backdrop-filter:blur(12px);border:1px solid var(--border);color:var(--text);width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:16px;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+.map-btn:hover{border-color:var(--accent);color:var(--accent);}
+.popup-title{font-family:'Unbounded',sans-serif;font-size:13px;font-weight:600;margin-bottom:6px;color:#1a1a2e;}
+.popup-tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;text-transform:uppercase;margin-bottom:8px;}
+.popup-desc{font-size:12px;color:#64748b;line-height:1.5;}
+.popup-time{font-size:11px;color:#94a3b8;margin-top:6px;}
+.leaflet-popup-content-wrapper{background:#fff!important;border:1px solid #e2d9c8!important;border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,.12)!important;color:#1a1a2e!important;}
+.leaflet-popup-tip{background:#fff!important;}
+.leaflet-popup-content{margin:12px 16px!important;font-family:'Manrope',sans-serif;}
+
+/* ══════ ANALYTICS ══════ */
+.analytics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;}
+.metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1rem;box-shadow:0 2px 6px rgba(0,0,0,.05);}
+.metric-label{font-size:11px;color:var(--muted);margin-bottom:6px;}
+.metric-value{font-family:'Unbounded',sans-serif;font-size:1.5rem;font-weight:700;}
+.metric-change{font-size:11px;margin-top:4px;}
+.up{color:var(--accent2);}.down{color:var(--accent3);}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--accent3);color:#fff;font-family:'Manrope',sans-serif;font-size:14px;font-weight:600;padding:12px 24px;border-radius:12px;z-index:9999;transition:transform .4s cubic-bezier(.34,1.56,.64,1);display:flex;align-items:center;gap:8px;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.about-section{padding:60px 2rem;max-width:1200px;margin:0 auto;position:relative;z-index:1;}
+.about-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:2rem;}
+.about-card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:1.5rem;box-shadow:0 2px 8px rgba(0,0,0,.05);}
+.about-icon{font-size:2rem;margin-bottom:1rem;display:block;}
+.about-title{font-family:'Unbounded',sans-serif;font-size:.88rem;font-weight:600;margin-bottom:8px;}
+.about-text{font-size:13px;color:var(--muted);line-height:1.7;}
+.section-title{font-family:'Unbounded',sans-serif;font-size:1.4rem;font-weight:700;margin-bottom:4px;}
+.section-sub{font-size:14px;color:var(--muted);margin-bottom:1.5rem;}
+.page{display:none;}.page.active{display:block;}
+
+/* ══════════════════════════════
+   AUTH MODAL
+══════════════════════════════ */
+.panel{position:fixed;top:0;left:0;right:0;bottom:0;z-index:1100;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;}
+.panel.show{opacity:1;pointer-events:all;}
+.panel-card{background:#fff;border:1px solid #e2d9c8;border-radius:20px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto;transform:translateY(20px);transition:transform .3s;margin:20px;}
+.panel.show .panel-card{transform:translateY(0);}
+.panel-head{padding:28px 28px 0;display:flex;align-items:flex-start;justify-content:space-between;}
+.panel-title{font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:4px;color:#1a1a2e;}
+.panel-sub{color:#64748b;font-size:13px;}
+.close-btn{width:32px;height:32px;border-radius:50%;border:1px solid #e2d9c8;background:transparent;color:#64748b;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;}
+.close-btn:hover{background:#f5f0e8;color:#1a1a2e;}
+.panel-body{padding:24px 28px 28px;}
+.tabs{display:flex;gap:4px;background:#f5f0e8;border-radius:10px;padding:4px;margin-bottom:20px;}
+.tab{flex:1;padding:9px;border:none;border-radius:7px;background:transparent;color:#64748b;cursor:pointer;font-family:var(--font-body);font-size:13px;font-weight:600;transition:all .2s;}
+.tab.active{background:#fff;color:#1a1a2e;box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;font-weight:700;color:#64748b;margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase;}
+.field input,.field select,.field textarea{width:100%;padding:10px 14px;border-radius:10px;border:1px solid #d4c9b0;background:#f8f4ed;color:#1a1a2e;font-family:var(--font-body);font-size:14px;outline:none;transition:border-color .2s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--p-accent2);background:#fff;}
+.field textarea{resize:none;height:80px;}
+.field select option{background:#fff;}
+.addr-toggle{display:flex;gap:8px;margin-bottom:14px;}
+.addr-type-btn{flex:1;padding:10px;border-radius:10px;border:1px solid #d4c9b0;background:#f8f4ed;color:#64748b;cursor:pointer;font-family:var(--font-body);font-size:13px;font-weight:600;text-align:center;transition:all .2s;}
+.addr-type-btn:hover{border-color:var(--p-accent);}
+.addr-type-btn.active{border-color:var(--p-accent);background:rgba(46,160,67,.08);color:var(--p-accent);}
+.addr-fields{display:none;}
+.addr-fields.show{display:block;}
+.btn-primary{width:100%;padding:13px;border-radius:10px;border:none;background:var(--p-accent);color:#fff;font-family:var(--font-display);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:8px;}
+.btn-primary:hover{background:#3fb950;transform:translateY(-1px);}
+.btn-secondary{width:100%;padding:13px;border-radius:10px;border:1px solid #d4c9b0;background:transparent;color:#1a1a2e;font-family:var(--font-display);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:8px;}
+.btn-secondary:hover{background:#f5f0e8;}
+.err{color:var(--p-danger);font-size:12px;margin-top:4px;display:none;}
+.err.show{display:block;}
+.hidden{display:none!important;}
+
+/* ══════════════════════════════
+   PORTAL SCREEN
+══════════════════════════════ */
+#screen-portal{font-family:var(--font-body);background:var(--p-bg);color:var(--p-text);height:100vh;overflow:hidden;position:relative;}
+.portal-bg{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:0;overflow:hidden;}
+.portal-bg svg{width:100%;height:100%;}
+
+/* Portal layout: sidebar left + map right */
+.portal-layout{display:flex;height:100vh;position:relative;z-index:1;}
+.portal-sidebar{width:340px;flex-shrink:0;background:var(--p-surface);border-right:1px solid var(--p-border);display:flex;flex-direction:column;overflow:hidden;z-index:10;}
+.portal-map-area{flex:1;position:relative;}
+#map-portal{width:100%;height:100%;}
+
+/* Portal topbar */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:rgba(248,244,237,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--p-border);}
+#portal-logo{font-family:var(--font-display);font-size:12px;font-weight:700;color:var(--p-accent);letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+#portal-logo .dot{width:8px;height:8px;border-radius:50%;background:var(--p-accent);animation:pDot 2s infinite;}
+@keyframes pDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+#topbar-right{display:flex;align-items:center;gap:10px;}
+#profile-btn{display:flex;align-items:center;gap:8px;background:var(--p-surface);border:1px solid var(--p-border);color:var(--p-text);padding:7px 14px;border-radius:999px;cursor:pointer;font-family:var(--font-body);font-size:13px;font-weight:500;transition:all .2s;}
+#profile-btn:hover{border-color:var(--p-accent);background:var(--p-surface2);}
+#profile-btn .avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--p-accent2),var(--p-accent));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
+#burger-btn{width:40px;height:40px;border-radius:50%;background:var(--p-surface);border:1px solid var(--p-border);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;transition:all .2s;}
+#burger-btn:hover{border-color:var(--p-accent2);}
+#burger-btn span{display:block;width:16px;height:2px;background:var(--p-text);border-radius:2px;transition:all .3s;}
+#burger-btn.active span:nth-child(1){transform:translateY(6px) rotate(45deg);}
+#burger-btn.active span:nth-child(2){opacity:0;}
+#burger-btn.active span:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
+
+/* Portal sidebar content */
+.portal-sidebar-inner{flex:1;overflow-y:auto;padding:70px 0 0;}
+.p-section{padding:16px 16px 0;}
+.p-section-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--p-text2);margin-bottom:10px;}
+.p-card{background:var(--p-surface2);border:1px solid var(--p-border);border-radius:var(--p-radius);padding:14px;margin-bottom:12px;}
+
+/* Neighborhood info */
+.neigh-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.neigh-icon{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--p-accent2),var(--p-accent));display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;}
+.neigh-name{font-family:var(--font-display);font-size:14px;font-weight:700;}
+.neigh-sub{font-size:11px;color:var(--p-text2);}
+.neigh-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
+.neigh-stat{background:var(--p-surface);border:1px solid var(--p-border);border-radius:8px;padding:10px;text-align:center;}
+.neigh-stat-num{font-family:var(--font-display);font-size:16px;font-weight:700;}
+.neigh-stat-lbl{font-size:10px;color:var(--p-text2);margin-top:2px;}
+.radius-toggle{display:flex;gap:6px;margin-bottom:12px;}
+.radius-btn{flex:1;padding:7px;border-radius:8px;border:1px solid var(--p-border);background:var(--p-surface);color:var(--p-text2);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .2s;font-family:var(--font-body);}
+.radius-btn.active{border-color:var(--p-accent2);background:rgba(31,111,235,.1);color:var(--p-accent2);}
+
+/* Image upload */
+.img-upload-zone{border:2px dashed var(--p-border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--p-surface);}
+.img-upload-zone:hover{border-color:var(--p-accent);background:rgba(46,160,67,.04);}
+.img-upload-zone input{display:none;}
+.img-preview{width:100%;border-radius:8px;margin-top:10px;max-height:140px;object-fit:cover;display:none;}
+.img-preview.show{display:block;}
+
+/* Mini incident list */
+.mini-incident{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:var(--p-surface);border:1px solid var(--p-border);margin-bottom:6px;cursor:pointer;transition:all .2s;font-size:12px;}
+.mini-incident:hover{border-color:var(--p-accent);}
+.mini-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.mini-name{flex:1;font-weight:600;}
+.mini-dist{color:var(--p-text2);font-size:11px;}
+
+/* Side menu (burger) */
+#side-menu{position:fixed;top:0;right:-380px;width:360px;height:100vh;background:var(--p-surface);border-left:1px solid var(--p-border);z-index:999;transition:right .35s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;box-shadow:-4px 0 20px rgba(0,0,0,.08);}
+#side-menu.open{right:0;}
+.menu-header{padding:70px 24px 20px;border-bottom:1px solid var(--p-border);}
+.menu-header h2{font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:4px;}
+.menu-header p{color:var(--p-text2);font-size:13px;}
+.menu-section{padding:20px 24px 0;}
+.menu-section-title{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--p-text2);margin-bottom:12px;}
+.lang-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
+.lang-btn{padding:10px 8px;border-radius:8px;border:1px solid var(--p-border);background:var(--p-bg);color:var(--p-text2);cursor:pointer;text-align:center;font-family:var(--font-body);font-size:12px;font-weight:600;transition:all .2s;}
+.lang-btn .flag{font-size:20px;display:block;margin-bottom:4px;}
+.lang-btn:hover{border-color:var(--p-accent2);}
+.lang-btn.active{border-color:var(--p-accent2);background:rgba(31,111,235,.1);color:var(--p-accent2);}
+.contact-list{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+.contact-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--p-radius);background:var(--p-bg);border:1px solid var(--p-border);text-decoration:none;color:var(--p-text);transition:all .2s;}
+.contact-item:hover{border-color:var(--p-accent);transform:translateX(-2px);}
+.contact-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.ci-green{background:rgba(46,160,67,.12);}
+.ci-blue{background:rgba(31,111,235,.12);}
+.ci-orange{background:rgba(210,153,34,.12);}
+.contact-label{font-size:11px;color:var(--p-text2);}
+.contact-value{font-size:13px;font-weight:600;}
+#overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:998;display:none;background:rgba(0,0,0,.25);}
+
+/* Notif */
+#notif{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#fff;border:1px solid var(--p-accent);border-radius:999px;padding:12px 24px;font-size:14px;font-weight:600;color:var(--p-accent);z-index:2000;transition:transform .4s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;font-family:var(--font-body);box-shadow:0 4px 16px rgba(0,0,0,.1);}
+#notif.show{transform:translateX(-50%) translateY(0);}
+
+/* Profile panel */
+.profile-avatar-big{width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,var(--p-accent2),var(--p-accent));display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:24px;font-weight:700;color:#fff;margin:0 auto 14px;}
+.profile-info-grid{display:grid;gap:8px;}
+.profile-info-row{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;background:var(--p-bg);border:1px solid var(--p-border);}
+.profile-info-icon{font-size:17px;flex-shrink:0;margin-top:1px;}
+.profile-info-label{font-size:11px;color:var(--p-text2);margin-bottom:2px;}
+.profile-info-val{font-size:14px;font-weight:600;}
+.p-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;margin-top:8px;}
+.p-badge.verified{background:rgba(46,160,67,.12);color:var(--p-accent);}
+.p-divider{height:1px;background:var(--p-border);margin:14px 0;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;}
+
+/* ══════════════════════════════
+   ADMIN SCREEN
+══════════════════════════════ */
+#screen-admin{font-family:var(--font-body);background:var(--p-bg);color:var(--p-text);min-height:100vh;}
+.admin-header{background:#1a1a2e;color:#fff;padding:0 2rem;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.admin-header h1{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--accent);}
+.admin-nav{display:flex;gap:6px;}
+.admin-nav button{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7);padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font-body);transition:all .2s;}
+.admin-nav button:hover,.admin-nav button.active{background:rgba(245,158,11,.2);border-color:var(--accent);color:var(--accent);}
+.admin-logout{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:var(--font-body);transition:all .2s;}
+.admin-logout:hover{background:rgba(239,68,68,.25);}
+.admin-content{max-width:1300px;margin:0 auto;padding:2rem 1.5rem;}
+.admin-page{display:none;}.admin-page.active{display:block;}
+.admin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem;}
+.admin-stat{background:#fff;border:1px solid var(--p-border);border-radius:12px;padding:1.2rem;box-shadow:0 2px 6px rgba(0,0,0,.05);}
+.admin-stat-icon{font-size:1.8rem;margin-bottom:8px;}
+.admin-stat-num{font-family:var(--font-display);font-size:1.6rem;font-weight:700;}
+.admin-stat-lbl{font-size:11px;color:var(--p-text2);margin-top:2px;}
+.admin-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;border:1px solid var(--p-border);}
+.admin-table th{background:#1a1a2e;color:#fff;padding:12px 16px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;}
+.admin-table td{padding:11px 16px;border-bottom:1px solid var(--p-border);font-size:13px;vertical-align:middle;}
+.admin-table tr:hover td{background:var(--p-bg);}
+.status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;}
+.sb-danger{background:rgba(239,68,68,.1);color:var(--accent2);}
+.sb-warning{background:rgba(245,158,11,.1);color:#d97706;}
+.sb-safe{background:rgba(16,185,129,.1);color:var(--accent3);}
+.sb-user{background:rgba(31,111,235,.1);color:var(--p-accent2);}
+.admin-action-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--p-border);background:transparent;color:var(--p-text);font-size:11px;cursor:pointer;font-family:var(--font-body);transition:all .2s;margin-right:4px;}
+.admin-action-btn:hover{background:var(--p-bg);}
+.admin-action-btn.del{border-color:rgba(239,68,68,.3);color:var(--accent2);}
+.admin-action-btn.del:hover{background:rgba(239,68,68,.06);}
+.admin-section-title{font-family:var(--font-display);font-size:1rem;font-weight:700;margin-bottom:1rem;}
+#admin-map{height:500px;border-radius:12px;border:1px solid var(--p-border);overflow:hidden;}
+
+@media(max-width:900px){
+  .app{grid-template-columns:1fr;}
+  nav{display:none;}
+  .analytics-grid{grid-template-columns:repeat(2,1fr);}
+  .about-grid{grid-template-columns:1fr;}
+  .portal-sidebar{width:280px;}
+  .admin-stats{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     SCREEN 1: LANDING
+══════════════════════════════════════ -->
+<div id="screen-landing">
+
+<!-- Thematic SVG background: street at night with lamp posts -->
+<div class="bg-scene">
+<svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="lamp1" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#fff9e6" stop-opacity=".9"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lamp2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#fff9e6" stop-opacity=".8"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/></radialGradient>
+    <radialGradient id="lamp3" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#fff9e6" stop-opacity=".7"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/></radialGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- Road -->
+  <rect x="0" y="700" width="1440" height="200" fill="#e8e0d0" opacity=".6"/>
+  <rect x="0" y="694" width="1440" height="8" fill="#d4c9b0" opacity=".8"/>
+  <!-- Road markings -->
+  <g opacity=".3">
+    <rect x="100" y="760" width="80" height="6" rx="3" fill="#c9b99a"/>
+    <rect x="280" y="760" width="80" height="6" rx="3" fill="#c9b99a"/>
+    <rect x="460" y="760" width="80" height="6" rx="3" fill="#c9b99a"/>
+    <rect x="640" y="760" width="80" height="6" rx="3" fill="#c9b99a"/>
+    <rect x="820" y="760" width="80" height="6" rx="3" fill="#c9b99a"/>
+    <rect x="1000" y="760" width="80" height="6" rx="3" fill="#c9b99a"/>
+    <rect x="1180" y="760" width="80" height="6" rx="3" fill="#c9b99a"/>
+    <rect x="1360" y="760" width="80" height="6" rx="3" fill="#c9b99a"/>
+  </g>
+  <!-- Lamp post 1 -->
+  <g transform="translate(180,350)" filter="url(#glow)">
+    <rect x="-3" y="0" width="6" height="350" rx="3" fill="#8a7e6e"/>
+    <path d="M-3,0 Q-30,-20 -60,-18 L-60,-12 Q-30,-14 0,6 Z" fill="#8a7e6e"/>
+    <circle cx="-60" cy="-15" r="9" fill="#fde68a" opacity=".95"/>
+    <ellipse cx="-60" cy="-15" rx="80" ry="80" fill="url(#lamp1)" opacity=".7"/>
+  </g>
+  <!-- Lamp post 2 -->
+  <g transform="translate(520,310)" filter="url(#glow)">
+    <rect x="-3" y="0" width="6" height="390" rx="3" fill="#8a7e6e"/>
+    <path d="M-3,0 Q-28,-22 -58,-20 L-58,-14 Q-28,-16 0,4 Z" fill="#8a7e6e"/>
+    <circle cx="-58" cy="-17" r="9" fill="#fde68a" opacity=".95"/>
+    <ellipse cx="-58" cy="-17" rx="80" ry="80" fill="url(#lamp1)" opacity=".6"/>
+  </g>
+  <!-- Lamp post 3 (broken - darker) -->
+  <g transform="translate(860,330)">
+    <rect x="-3" y="0" width="6" height="370" rx="3" fill="#8a7e6e"/>
+    <path d="M-3,0 Q-28,-22 -58,-20 L-58,-14 Q-28,-16 0,4 Z" fill="#8a7e6e"/>
+    <circle cx="-58" cy="-17" r="9" fill="#c9b99a" opacity=".4"/>
+    <text x="-70" y="-35" font-size="13" fill="#ef4444" opacity=".6" font-family="sans-serif">⚠</text>
+  </g>
+  <!-- Lamp post 4 -->
+  <g transform="translate(1200,340)" filter="url(#glow)">
+    <rect x="-3" y="0" width="6" height="360" rx="3" fill="#8a7e6e"/>
+    <path d="M-3,0 Q-28,-22 -58,-20 L-58,-14 Q-28,-16 0,4 Z" fill="#8a7e6e"/>
+    <circle cx="-58" cy="-17" r="9" fill="#fde68a" opacity=".9"/>
+    <ellipse cx="-58" cy="-17" rx="80" ry="80" fill="url(#lamp2)" opacity=".55"/>
+  </g>
+  <!-- Buildings silhouette left -->
+  <rect x="0" y="550" width="120" height="155" rx="4" fill="#e0d9cc" opacity=".5"/>
+  <rect x="30" y="490" width="60" height="215" rx="4" fill="#d4cdc0" opacity=".5"/>
+  <rect x="130" y="560" width="90" height="145" rx="4" fill="#ddd6c8" opacity=".45"/>
+  <!-- Buildings silhouette right -->
+  <rect x="1300" y="540" width="140" height="165" rx="4" fill="#e0d9cc" opacity=".5"/>
+  <rect x="1260" y="500" width="80" height="205" rx="4" fill="#d4cdc0" opacity=".48"/>
+  <!-- Windows (lit) -->
+  <g fill="#fde68a" opacity=".5">
+    <rect x="45" y="510" width="8" height="8" rx="1"/><rect x="60" y="510" width="8" height="8" rx="1"/>
+    <rect x="45" y="525" width="8" height="8" rx="1"/><rect x="60" y="525" width="8" height="8" rx="1"/>
+    <rect x="45" y="540" width="8" height="8" rx="1"/>
+    <rect x="1275" y="520" width="8" height="8" rx="1"/><rect x="1290" y="520" width="8" height="8" rx="1"/>
+    <rect x="1275" y="535" width="8" height="8" rx="1"/>
+    <rect x="1315" y="555" width="8" height="8" rx="1"/><rect x="1330" y="555" width="8" height="8" rx="1"/>
+  </g>
+  <!-- Moon -->
+  <circle cx="1360" cy="80" r="38" fill="#fef3c7" opacity=".5"/>
+  <circle cx="1378" cy="68" r="30" fill="#f8f4ed" opacity=".5"/>
+  <!-- Stars -->
+  <g fill="#92400e" opacity=".2">
+    <circle cx="300" cy="60" r="2"/><circle cx="450" cy="40" r="1.5"/>
+    <circle cx="600" cy="80" r="2"/><circle cx="750" cy="30" r="1.5"/>
+    <circle cx="900" cy="65" r="2"/><circle cx="1050" cy="45" r="1.5"/>
+  </g>
+  <!-- Dark zone shadow (area with broken lamp) -->
+  <ellipse cx="800" cy="700" rx="200" ry="60" fill="rgba(0,0,0,0.06)"/>
+</svg>
+</div>
+
+<header>
+  <a class="logo" href="#"><span class="logo-icon">💡</span>Умный свет</a>
+  <nav>
+    <button class="active" onclick="showPage('map-page',this)">Карта</button>
+    <button onclick="showPage('analytics-page',this)">Аналитика</button>
+    <button onclick="showPage('about-page',this)">О проекте</button>
+  </nav>
+  <div class="header-right">
+    <span class="live-badge"><span class="live-dot"></span>Онлайн</span>
+    <button class="header-login-btn" onclick="openAuthPanel()">Войти / Регистрация</button>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-tag">🌟 Безопасный город — Ташкент</div>
+  <h1>Освещаем каждый<br><span>тёмный угол</span> города</h1>
+  <p class="hero-sub">Интерактивная карта неосвещённых зон — помогаем гражданам сообщать об опасных местах и снижаем преступность вместе</p>
+  <div class="hero-stats">
+    <div class="stat"><span class="stat-num" id="stat1">0</span><span class="stat-label">Зон выявлено</span></div>
+    <div class="stat"><span class="stat-num" id="stat2">0</span><span class="stat-label">Исправлено</span></div>
+    <div class="stat"><span class="stat-num" id="stat3">0%</span><span class="stat-label">Снижение риска</span></div>
+  </div>
+</div>
+
+<!-- MAP PAGE -->
+<div id="map-page" class="page active">
+  <div class="app">
+    <div class="sidebar">
+      <div class="card">
+        <div class="card-title">Фильтры зон</div>
+        <div class="filter-group">
+          <button class="filter-btn active" onclick="filterLayer('all',this)"><span class="filter-dot" style="background:#94a3b8"></span>Все зоны<span class="filter-count" id="count-all">12</span></button>
+          <button class="filter-btn" onclick="filterLayer('danger',this)"><span class="filter-dot" style="background:#ef4444"></span>Опасные<span class="filter-count" id="count-danger">5</span></button>
+          <button class="filter-btn" onclick="filterLayer('warning',this)"><span class="filter-dot" style="background:#f59e0b"></span>Подозрительные<span class="filter-count" id="count-warning">4</span></button>
+          <button class="filter-btn" onclick="filterLayer('safe',this)"><span class="filter-dot" style="background:#10b981"></span>Проверяемые<span class="filter-count" id="count-safe">3</span></button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Последние сообщения</div>
+        <div class="incidents" id="incident-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Сообщить о зоне</div>
+        <div class="report-form">
+          <input class="form-input" type="text" id="inp-location" placeholder="📍 Адрес или место">
+          <select class="form-input" id="inp-type">
+            <option value="">— Тип угрозы —</option>
+            <option value="danger">Очень тёмное место</option>
+            <option value="warning">Слабое освещение</option>
+            <option value="safe">Требует проверки</option>
+          </select>
+          <textarea class="form-input" id="inp-desc" rows="2" placeholder="Описание ситуации..."></textarea>
+          <div class="field" style="margin:0">
+            <label style="text-transform:uppercase;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:5px;display:block;">Фото места (необязательно)</label>
+            <label class="img-upload-zone" id="landing-upload-zone">
+              <input type="file" accept="image/*" id="landing-img-input" onchange="previewLandingImg(this)">
+              <div id="landing-upload-text">📷 Нажмите чтобы загрузить фото</div>
+              <img id="landing-img-preview" class="img-preview" src="" alt="">
+            </label>
+          </div>
+          <button class="btn-report" onclick="submitReport()">⚡ Отправить сообщение</button>
+        </div>
+      </div>
+    </div>
+    <div class="map-container">
+      <div id="map-landing"></div>
+      <div class="map-overlay">
+        <div class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>Высокий риск</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span>Средний риск</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#10b981"></span>Проверяется</div>
+      </div>
+      <div class="map-toolbar">
+        <button class="map-btn" onclick="locateMe()">📍</button>
+        <button class="map-btn" onclick="alert('Тепловая карта — скоро!')">🔥</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYTICS PAGE -->
+<div id="analytics-page" class="page">
+  <div class="about-section">
+    <div class="section-title">Аналитика безопасности</div>
+    <p class="section-sub">Статистика по неосвещённым зонам Ташкента</p>
+    <div class="analytics-grid">
+      <div class="metric-card"><div class="metric-label">Всего зон выявлено</div><div class="metric-value" style="color:#f59e0b">247</div><div class="metric-change up">▲ +18 за месяц</div></div>
+      <div class="metric-card"><div class="metric-label">Исправлено фонарей</div><div class="metric-value" style="color:#10b981">139</div><div class="metric-change down">▼ 56% устранено</div></div>
+      <div class="metric-card"><div class="metric-label">Активных жалоб</div><div class="metric-value" style="color:#ef4444">108</div><div class="metric-change up">▲ требуют реакции</div></div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;">
+      <div class="card-title">Районы с наибольшим риском</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+        <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>Юнусабад</span><span style="color:#ef4444">82 зоны</span></div><div style="background:var(--bg3);border-radius:100px;height:6px;"><div style="background:#ef4444;height:6px;border-radius:100px;width:82%"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>Мирабад</span><span style="color:#f59e0b">61 зона</span></div><div style="background:var(--bg3);border-radius:100px;height:6px;"><div style="background:#f59e0b;height:6px;border-radius:100px;width:61%"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>Чиланзар</span><span style="color:#f59e0b">54 зоны</span></div><div style="background:var(--bg3);border-radius:100px;height:6px;"><div style="background:#f59e0b;height:6px;border-radius:100px;width:54%"></div></div></div>
+        <div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>Сергели</span><span style="color:#10b981">30 зон</span></div><div style="background:var(--bg3);border-radius:100px;height:6px;"><div style="background:#10b981;height:6px;border-radius:100px;width:30%"></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT PAGE -->
+<div id="about-page" class="page">
+  <div class="about-section">
+    <div class="section-title">О проекте «Умный свет»</div>
+    <p class="section-sub">Гражданская инициатива по снижению преступности через улучшение уличного освещения</p>
+    <div class="about-grid">
+      <div class="about-card"><span class="about-icon">🗺️</span><div class="about-title">Карта тёмных зон</div><p class="about-text">Граждане отмечают на карте неосвещённые места — переулки, дворы, подземные переходы.</p></div>
+      <div class="about-card"><span class="about-icon">⚡</span><div class="about-title">Быстрая реакция</div><p class="about-text">Городские службы получают уведомления в режиме реального времени.</p></div>
+      <div class="about-card"><span class="about-icon">📊</span><div class="about-title">Аналитика</div><p class="about-text">Собираем статистику, выявляем паттерны освещённости по районам.</p></div>
+      <div class="about-card"><span class="about-icon">👥</span><div class="about-title">Сообщество</div><p class="about-text">Любой житель может зарегистрироваться и помочь сделать город безопаснее.</p></div>
+      <div class="about-card"><span class="about-icon">🔒</span><div class="about-title">Конфиденциальность</div><p class="about-text">Адрес хранится частично — только подъезд или махалля, без точного адреса.</p></div>
+      <div class="about-card"><span class="about-icon">🌙</span><div class="about-title">Ночной мониторинг</div><p class="about-text">Система работает круглосуточно, данные обновляются в реальном времени.</p></div>
+    </div>
+    <div style="margin-top:2rem;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:2rem;text-align:center;">
+      <div style="font-family:'Unbounded',sans-serif;font-size:1.1rem;margin-bottom:8px;">Хотите помочь проекту?</div>
+      <p style="color:var(--muted);font-size:14px;margin-bottom:16px;">Зарегистрируйтесь и получите доступ к персональному кабинету</p>
+      <button class="btn-report" style="width:auto;padding:12px 32px;" onclick="openAuthPanel()">Зарегистрироваться</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✅ Сообщение отправлено! Спасибо!</div>
+
+<!-- AUTH MODAL -->
+<div class="panel" id="landing-auth-panel">
+  <div class="panel-card">
+    <div class="panel-head">
+      <div><div class="panel-title">Добро пожаловать</div><div class="panel-sub">Войдите или зарегистрируйтесь</div></div>
+      <button class="close-btn" onclick="closeAuthPanel()">×</button>
+    </div>
+    <div class="panel-body">
+      <div class="tabs">
+        <button class="tab active" id="l-tab-login" onclick="switchLandingTab('login')">Войти</button>
+        <button class="tab" id="l-tab-register" onclick="switchLandingTab('register')">Регистрация</button>
+      </div>
+      <!-- LOGIN -->
+      <div id="l-form-login">
+        <div class="field"><label>Логин или номер телефона</label><input type="text" id="l-login-id" placeholder="Логин или +998..."></div>
+        <div class="field"><label>Пароль</label><input type="password" id="l-login-pass" placeholder="••••••••"></div>
+        <div class="err" id="l-login-err">Неверный логин/телефон или пароль</div>
+        <button class="btn-primary" onclick="doLandingLogin()">Войти в портал</button>
+        <button class="btn-secondary" onclick="switchLandingTab('register')">Создать аккаунт</button>
+      </div>
+      <!-- REGISTER -->
+      <div id="l-form-register" class="hidden">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="field"><label>Имя</label><input type="text" id="l-reg-fname" placeholder="Алишер"></div>
+          <div class="field"><label>Фамилия</label><input type="text" id="l-reg-lname" placeholder="Навоий"></div>
+        </div>
+        <div class="field"><label>Логин (уникальный)</label><input type="text" id="l-reg-login" placeholder="alisher_navoi"></div>
+        <div class="field"><label>Номер телефона</label><input type="tel" id="l-reg-phone" placeholder="+998 __ ___ __ __"></div>
+        <div class="field"><label>Пароль</label><input type="password" id="l-reg-pass" placeholder="Минимум 6 символов"></div>
+        <div class="field">
+          <label>Тип проживания</label>
+          <div class="addr-toggle">
+            <button class="addr-type-btn active" id="l-btn-apt" onclick="setLandingAddr('apartment')">🏠 Квартира</button>
+            <button class="addr-type-btn" id="l-btn-house" onclick="setLandingAddr('house')">🏡 Частный дом</button>
+          </div>
+        </div>
+        <div class="addr-fields show" id="l-addr-apartment">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="field"><label>Район</label>
+              <select id="l-reg-district">
+                <option value="">— выберите —</option>
+                <option>Юнусабадский</option><option>Мирабадский</option>
+                <option>Яккасарайский</option><option>Чиланзарский</option>
+                <option>Мирзо-Улугбекский</option><option>Сергелийский</option>
+                <option>Бектемирский</option><option>Яшнободский</option><option>Ц. Ташкент</option>
+              </select>
+            </div>
+            <div class="field"><label>Подъезд</label><input type="number" id="l-reg-entrance" placeholder="№" min="1" max="20"></div>
+          </div>
+        </div>
+        <div class="addr-fields" id="l-addr-house">
+          <div class="field"><label>Махалля</label><input type="text" id="l-reg-mahalla" placeholder="Название махалли"></div>
+          <div class="field"><label>Улица</label><input type="text" id="l-reg-street" placeholder="Название улицы"></div>
+        </div>
+        <div class="err" id="l-reg-err">Заполните все поля</div>
+        <button class="btn-primary" onclick="doLandingRegister()">Зарегистрироваться и войти</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /screen-landing -->
+
+
+<!-- ══════════════════════════════════════
+     SCREEN 2: CITIZEN PORTAL
+══════════════════════════════════════ -->
+<div id="screen-portal">
+
+<!-- Thematic portal background -->
+<div class="portal-bg">
+<svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="pg1" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#fff9e6" stop-opacity=".6"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1440" height="900" fill="#f8f4ed"/>
+  <!-- Subtle lamp glow top corners -->
+  <ellipse cx="0" cy="0" rx="300" ry="300" fill="url(#pg1)" opacity=".4"/>
+  <ellipse cx="1440" cy="0" rx="300" ry="300" fill="url(#pg1)" opacity=".3"/>
+  <!-- Tiny lamp icons watermark -->
+  <g opacity=".04" fill="#92400e">
+    <text x="50" y="200" font-size="60">💡</text>
+    <text x="1300" y="300" font-size="50">🔦</text>
+    <text x="700" y="850" font-size="55">🕯️</text>
+  </g>
+</svg>
+</div>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div id="portal-logo"><div class="dot"></div><span id="logo-text">ГРАЖДАНСКИЙ ПОРТАЛ</span></div>
+  <div id="topbar-right">
+    <button id="profile-btn" onclick="openProfile()">
+      <div class="avatar" id="avatar-initials">?</div>
+      <span id="profile-btn-text">Профиль</span>
+    </button>
+    <button id="burger-btn" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+  </div>
+</div>
+
+<!-- PORTAL LAYOUT -->
+<div class="portal-layout" style="padding-top:55px;">
+  <!-- LEFT SIDEBAR -->
+  <div class="portal-sidebar">
+    <div class="portal-sidebar-inner">
+
+      <!-- NEIGHBORHOOD SECTION -->
+      <div class="p-section">
+        <div class="p-section-title">Мой район</div>
+        <div class="p-card">
+          <div class="neigh-header">
+            <div class="neigh-icon">🏘️</div>
+            <div>
+              <div class="neigh-name" id="neigh-name">—</div>
+              <div class="neigh-sub" id="neigh-sub">Ваш район</div>
+            </div>
+          </div>
+          <div class="neigh-stats">
+            <div class="neigh-stat"><div class="neigh-stat-num" style="color:#ef4444" id="neigh-danger">—</div><div class="neigh-stat-lbl">Опасных зон</div></div>
+            <div class="neigh-stat"><div class="neigh-stat-num" style="color:#10b981" id="neigh-safe">—</div><div class="neigh-stat-lbl">Освещено</div></div>
+          </div>
+          <div class="p-section-title" style="margin-bottom:8px;">Радиус показа</div>
+          <div class="radius-toggle">
+            <button class="radius-btn active" id="r500" onclick="setRadius(500,this)">500 м</button>
+            <button class="radius-btn" id="r1000" onclick="setRadius(1000,this)">1 км</button>
+          </div>
+          <div id="neigh-incidents" style="max-height:160px;overflow-y:auto;"></div>
+        </div>
+      </div>
+
+      <!-- REPORT SECTION -->
+      <div class="p-section">
+        <div class="p-section-title">Сообщить о зоне</div>
+        <div class="p-card">
+          <div class="field"><label>Адрес / место</label><input type="text" id="p-inp-location" placeholder="📍 Укажите место" style="background:#f8f4ed;border:1px solid var(--p-border);border-radius:10px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:13px;outline:none;color:var(--p-text);"></div>
+          <div class="field"><label>Тип проблемы</label>
+            <select id="p-inp-type" style="background:#f8f4ed;border:1px solid var(--p-border);border-radius:10px;padding:10px 14px;width:100%;font-family:var(--font-body);font-size:13px;outline:none;color:var(--p-text);">
+              <option value="">— выберите —</option>
+              <option value="danger">Очень тёмное место</option>
+              <option value="warning">Слабое освещение</option>
+              <option value="safe">Требует проверки</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Фото места</label>
+            <label class="img-upload-zone" id="portal-upload-zone" style="border:2px dashed var(--p-border);border-radius:10px;padding:16px;text-align:center;cursor:pointer;background:var(--p-surface);">
+              <input type="file" accept="image/*" id="portal-img-input" onchange="previewPortalImg(this)" style="display:none;">
+              <div id="portal-upload-text" style="font-size:12px;color:var(--p-text2);">📷 Нажмите для загрузки фото</div>
+              <img id="portal-img-preview" class="img-preview" src="" alt="">
+            </label>
+          </div>
+          <button onclick="submitPortalReport()" style="width:100%;padding:11px;border-radius:10px;border:none;background:var(--p-accent);color:#fff;font-family:var(--font-display);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;letter-spacing:.03em;">⚡ Отправить</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MAP AREA -->
+  <div class="portal-map-area">
+    <div id="map-portal"></div>
+  </div>
+</div>
+
+<!-- SIDE MENU -->
+<div id="side-menu">
+  <div class="menu-header">
+    <h2 id="menu-title">Меню</h2>
+    <p id="menu-sub">Настройки и контакты</p>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding-bottom:24px;">
+    <div class="menu-section">
+      <div class="menu-section-title">Язык / Language / Til</div>
+      <div class="lang-grid">
+        <button class="lang-btn" onclick="setLang('uz')"><span class="flag">🇺🇿</span>O'zbek</button>
+        <button class="lang-btn active" onclick="setLang('ru')"><span class="flag">🇷🇺</span>Русский</button>
+        <button class="lang-btn" onclick="setLang('en')"><span class="flag">🇺🇸</span>English</button>
+      </div>
+    </div>
+    <div class="menu-section">
+      <div class="menu-section-title" id="contacts-title">Контакты</div>
+      <div class="contact-list">
+        <a class="contact-item" href="tel:+998712000000"><div class="contact-icon ci-green">📞</div><div><div class="contact-label">Телефон</div><div class="contact-value">+998 71 200-00-00</div></div></a>
+        <a class="contact-item" href="mailto:info@portal.uz"><div class="contact-icon ci-blue">✉️</div><div><div class="contact-label">Email</div><div class="contact-value">info@portal.uz</div></div></a>
+        <a class="contact-item" href="#"><div class="contact-icon ci-orange">📍</div><div><div class="contact-label">Адрес</div><div class="contact-value">г. Ташкент, ул. Навои 1</div></div></a>
+        <a class="contact-item" href="#"><div class="contact-icon ci-blue">💬</div><div><div class="contact-label">Telegram</div><div class="contact-value">@cityportal_uz</div></div></a>
+      </div>
+    </div>
+    <div class="menu-section">
+      <div class="menu-section-title">Режим работы</div>
+      <div style="background:var(--p-bg);border:1px solid var(--p-border);border-radius:var(--p-radius);padding:14px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span style="color:var(--p-text2);font-size:13px;">Пн — Пт</span><span style="font-weight:600;font-size:13px;">09:00 — 18:00</span></div>
+        <div style="display:flex;justify-content:space-between;"><span style="color:var(--p-text2);font-size:13px;">Суббота</span><span style="font-weight:600;font-size:13px;">09:00 — 13:00</span></div>
+        <div style="height:1px;background:var(--p-border);margin:12px 0;"></div>
+        <div style="display:flex;align-items:center;gap:6px;"><div style="width:8px;height:8px;border-radius:50%;background:var(--p-accent)"></div><span style="font-size:12px;color:var(--p-accent);font-weight:600;">Сейчас открыто</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="overlay" onclick="toggleMenu()"></div>
+
+<!-- PROFILE PANEL -->
+<div class="panel" id="profile-panel">
+  <div class="panel-card">
+    <div class="panel-head">
+      <div><div class="panel-title" id="pp-title">Мой профиль</div><div class="panel-sub">Информация о гражданине</div></div>
+      <button class="close-btn" onclick="closePanel('profile-panel')">×</button>
+    </div>
+    <div class="panel-body">
+      <div class="profile-avatar-big" id="pp-avatar">АН</div>
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:4px;" id="pp-name">—</div>
+        <div class="p-badge verified">✓ Верифицирован</div>
+      </div>
+      <div class="profile-info-grid" id="pp-info-grid"></div>
+      <div class="p-divider"></div>
+      <button class="btn-secondary" onclick="doLogout()">Выйти из аккаунта</button>
+    </div>
+  </div>
+</div>
+
+<div id="notif">✓ Готово</div>
+
+</div><!-- /screen-portal -->
+
+
+<!-- ══════════════════════════════════════
+     SCREEN 3: ADMIN
+══════════════════════════════════════ -->
+<div id="screen-admin">
+<div class="admin-header">
+  <h1>💡 АДМИН-ПАНЕЛЬ — Умный свет</h1>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="admin-nav">
+      <button class="active" onclick="showAdminPage('admin-overview',this)">Обзор</button>
+      <button onclick="showAdminPage('admin-citizens',this)">Граждане</button>
+      <button onclick="showAdminPage('admin-incidents',this)">Инциденты</button>
+      <button onclick="showAdminPage('admin-map',this)">Карта</button>
+    </div>
+    <button class="admin-logout" onclick="adminLogout()">Выйти</button>
+  </div>
+</div>
+<div class="admin-content">
+
+  <!-- OVERVIEW -->
+  <div id="admin-overview" class="admin-page active">
+    <div class="admin-stats">
+      <div class="admin-stat"><div class="admin-stat-icon">👥</div><div class="admin-stat-num" id="adm-citizens-count" style="color:var(--p-accent2)">0</div><div class="admin-stat-lbl">Граждан зарегистрировано</div></div>
+      <div class="admin-stat"><div class="admin-stat-icon">⚠️</div><div class="admin-stat-num" style="color:#ef4444">5</div><div class="admin-stat-lbl">Опасных зон</div></div>
+      <div class="admin-stat"><div class="admin-stat-icon">🔶</div><div class="admin-stat-num" style="color:#f59e0b">4</div><div class="admin-stat-lbl">Подозрительных</div></div>
+      <div class="admin-stat"><div class="admin-stat-icon">✅</div><div class="admin-stat-num" style="color:#10b981">3</div><div class="admin-stat-lbl">Проверяется</div></div>
+    </div>
+    <div style="background:#fff;border:1px solid var(--p-border);border-radius:16px;padding:1.5rem;margin-bottom:1.5rem;">
+      <div class="admin-section-title">Последние инциденты</div>
+      <table class="admin-table">
+        <thead><tr><th>#</th><th>Место</th><th>Тип</th><th>Время</th><th>Действие</th></tr></thead>
+        <tbody id="adm-recent-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CITIZENS -->
+  <div id="admin-citizens" class="admin-page">
+    <div class="admin-section-title">Зарегистрированные граждане</div>
+    <table class="admin-table">
+      <thead><tr><th>#</th><th>Имя</th><th>Логин</th><th>Телефон</th><th>Район/Махалля</th><th>Тип жилья</th><th>Дата</th><th>Действие</th></tr></thead>
+      <tbody id="adm-citizens-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- INCIDENTS -->
+  <div id="admin-incidents" class="admin-page">
+    <div class="admin-section-title">Все инциденты</div>
+    <table class="admin-table">
+      <thead><tr><th>#</th><th>Место</th><th>Описание</th><th>Тип</th><th>Время</th><th>Действие</th></tr></thead>
+      <tbody id="adm-incidents-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- MAP -->
+  <div id="admin-map" class="admin-page">
+    <div class="admin-section-title">Карта всех инцидентов</div>
+    <div id="admin-map-container"></div>
+  </div>
+
+</div>
+</div><!-- /screen-admin -->
+
+
+<script>
+// ════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════
+const S = {
+  lang:'ru',
+  user: null,
+  citizens: JSON.parse(localStorage.getItem('uz_citizens')||'[]'),
+  addrType:'apartment',
+  radius:500,
+  menuOpen:false,
+  portalIncidents:[],
+  radiusCircle:null,
+};
+
+// Admin credentials
+const ADMIN = { login:'admin', pass:'admin' };
+
+// ════════════════════════════════════════
+//  INCIDENT DATA
+// ════════════════════════════════════════
+const incidents = [
+  {id:1,name:'ул. Навои, 15',desc:'Полная темнота у подземного перехода',type:'danger',time:'10 мин назад',lat:41.2995,lng:69.2401},
+  {id:2,name:'Парк Бабура',desc:'Несколько сломанных фонарей вдоль аллеи',type:'warning',time:'25 мин назад',lat:41.2958,lng:69.2498},
+  {id:3,name:'ул. Шота Руставели',desc:'Тёмный участок 200м у рынка',type:'danger',time:'1 ч назад',lat:41.3052,lng:69.2267},
+  {id:4,name:'Двор на Чиланзаре',desc:'Никакого освещения в жилом дворе',type:'warning',time:'2 ч назад',lat:41.2882,lng:69.2089},
+  {id:5,name:'Переулок Юнусабад',desc:'Тёмный тупик, часто замечают подозрительных',type:'danger',time:'3 ч назад',lat:41.3387,lng:69.2791},
+  {id:6,name:'ул. Амира Темура',desc:'Принято в работу коммунальной службой',type:'safe',time:'4 ч назад',lat:41.2985,lng:69.2775},
+  {id:7,name:'Ж/д вокзал (выход Б)',desc:'Тёмный участок у входа',type:'danger',time:'5 ч назад',lat:41.2937,lng:69.2602},
+  {id:8,name:'Сквер Дружбы',desc:'Слабое освещение дорожек',type:'warning',time:'6 ч назад',lat:41.3012,lng:69.2512},
+  {id:9,name:'Проспект Мустакиллик',desc:'Ведутся работы по замене фонарей',type:'safe',time:'вчера',lat:41.3120,lng:69.2690},
+  {id:10,name:'ул. Паркентская',desc:'Темнота на протяжении 300м',type:'danger',time:'вчера',lat:41.3205,lng:69.2945},
+  {id:11,name:'Рынок Чорсу (обход)',desc:'Тёмные проходы с тыльной стороны',type:'warning',time:'вчера',lat:41.3268,lng:69.2371},
+  {id:12,name:'Массив Сергели',desc:'Проверка запланирована',type:'safe',time:'2 дня назад',lat:41.2451,lng:69.2309},
+  {id:13,name:'Сергели, ул. Янги',desc:'Тёмный проезд у школы',type:'danger',time:'3 ч назад',lat:41.2480,lng:69.2350},
+  {id:14,name:'Сергели, мкр 3',desc:'Редкие фонари вдоль дороги',type:'warning',time:'5 ч назад',lat:41.2430,lng:69.2280},
+  {id:15,name:'Сергели, парк',desc:'Освещение восстановлено',type:'safe',time:'вчера',lat:41.2510,lng:69.2400},
+];
+
+const districtCoords = {
+  'Юнусабадский':[41.3585,69.2826],'Мирабадский':[41.3097,69.2756],
+  'Яккасарайский':[41.2830,69.2460],'Чиланзарский':[41.2840,69.1960],
+  'Мирзо-Улугбекский':[41.3218,69.3200],'Сергелийский':[41.2451,69.2309],
+  'Бектемирский':[41.2580,69.3500],'Яшнободский':[41.3480,69.2000],
+  'Ц. Ташкент':[41.2995,69.2401],
+};
+const mColors={danger:'#ef4444',warning:'#f59e0b',safe:'#10b981'};
+const mEmoji={danger:'⚠️',warning:'🔶',safe:'✅'};
+
+// ════════════════════════════════════════
+//  LANDING MAP (LIGHT)
+// ════════════════════════════════════════
+const landingMap = L.map('map-landing',{zoomControl:false}).setView([41.2995,69.2401],13);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© CARTO',maxZoom:19}).addTo(landingMap);
+L.control.zoom({position:'bottomright'}).addTo(landingMap);
+
+let allMarkers=[];
+function createLIcon(type){
+  return L.divIcon({className:'',html:`<div style="width:30px;height:30px;background:${mColors[type]};border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px ${mColors[type]}88,0 1px 4px rgba(0,0,0,.2)">${mEmoji[type]}</div>`,iconSize:[30,30],iconAnchor:[15,15]});
+}
+incidents.forEach(inc=>{
+  const m=L.marker([inc.lat,inc.lng],{icon:createLIcon(inc.type)});
+  m.incidentType=inc.type;
+  m.bindPopup(`<div class="popup-title">${inc.name}</div><span class="popup-tag" style="background:${mColors[inc.type]}18;color:${mColors[inc.type]}">${inc.type==='danger'?'⚠️ Опасно':inc.type==='warning'?'🔶 Внимание':'✅ Проверяется'}</span><div class="popup-desc">${inc.desc}</div><div class="popup-time">🕐 ${inc.time}</div>`);
+  m.addTo(landingMap);
+  allMarkers.push(m);
+});
+
+function renderIncidents(filter='all'){
+  const list=document.getElementById('incident-list');
+  const data=filter==='all'?incidents:incidents.filter(i=>i.type===filter);
+  list.innerHTML=data.map(i=>`<div class="incident ${i.type}" onclick="flyTo(${i.lat},${i.lng})"><div class="incident-top"><span class="incident-badge badge-${i.type}">${i.type==='danger'?'Опасно':i.type==='warning'?'Внимание':'Проверка'}</span><span class="incident-name">${i.name}</span></div><div class="incident-desc">${i.desc}</div><div class="incident-time">🕐 ${i.time}</div></div>`).join('');
+}
+renderIncidents();
+
+function filterLayer(type,btn){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  allMarkers.forEach(m=>{if(type==='all'||m.incidentType===type)m.addTo(landingMap);else landingMap.removeLayer(m);});
+  renderIncidents(type);
+}
+function flyTo(lat,lng){document.getElementById('map-page').scrollIntoView({behavior:'smooth'});landingMap.flyTo([lat,lng],16,{duration:1});}
+function locateMe(){landingMap.locate({setView:true,maxZoom:15});}
+
+function submitReport(){
+  const loc=document.getElementById('inp-location').value.trim();
+  const type=document.getElementById('inp-type').value;
+  if(!loc||!type){alert('Укажите место и тип угрозы.');return;}
+  const lat=41.2995+(Math.random()-.5)*.05,lng=69.2401+(Math.random()-.5)*.05;
+  const m=L.marker([lat,lng],{icon:createLIcon(type)});
+  m.incidentType=type;
+  const desc=document.getElementById('inp-desc').value||'Нет описания';
+  m.bindPopup(`<div class="popup-title">${loc}</div><span class="popup-tag" style="background:${mColors[type]}18;color:${mColors[type]}">Новая жалоба</span><div class="popup-desc">${desc}</div><div class="popup-time">🕐 только что</div>`).addTo(landingMap);
+  allMarkers.push(m);
+  landingMap.flyTo([lat,lng],15);
+  incidents.unshift({id:incidents.length+1,name:loc,desc,type,time:'только что',lat,lng});
+  renderIncidents();
+  document.getElementById('count-all').textContent=incidents.length;
+  document.getElementById('inp-location').value='';
+  document.getElementById('inp-type').value='';
+  document.getElementById('inp-desc').value='';
+  document.getElementById('landing-img-preview').style.display='none';
+  document.getElementById('landing-upload-text').style.display='block';
+  const t=document.getElementById('toast');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+function previewLandingImg(input){
+  if(input.files&&input.files[0]){
+    const r=new FileReader();
+    r.onload=e=>{
+      const img=document.getElementById('landing-img-preview');
+      img.src=e.target.result;img.classList.add('show');
+      document.getElementById('landing-upload-text').style.display='none';
+    };
+    r.readAsDataURL(input.files[0]);
+  }
+}
+function previewPortalImg(input){
+  if(input.files&&input.files[0]){
+    const r=new FileReader();
+    r.onload=e=>{
+      const img=document.getElementById('portal-img-preview');
+      img.src=e.target.result;img.classList.add('show');
+      document.getElementById('portal-upload-text').style.display='none';
+    };
+    r.readAsDataURL(input.files[0]);
+  }
+}
+
+function showPage(pageId,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  if(btn){document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));btn.classList.add('active');}
+  if(pageId==='map-page')setTimeout(()=>landingMap.invalidateSize(),100);
+}
+
+// Counter animation
+function animateCounter(el,target,suffix=''){let s=0;const step=target/40;const timer=setInterval(()=>{s+=step;if(s>=target){s=target;clearInterval(timer);}el.textContent=Math.floor(s)+suffix;},40);}
+setTimeout(()=>{animateCounter(document.getElementById('stat1'),247);animateCounter(document.getElementById('stat2'),139);animateCounter(document.getElementById('stat3'),56,'%');},500);
+
+// ════════════════════════════════════════
+//  AUTH
+// ════════════════════════════════════════
+let landingAddrType='apartment';
+
+function openAuthPanel(){document.getElementById('landing-auth-panel').classList.add('show');}
+function closeAuthPanel(){document.getElementById('landing-auth-panel').classList.remove('show');}
+
+function switchLandingTab(tab){
+  const isLogin=tab==='login';
+  document.getElementById('l-tab-login').classList.toggle('active',isLogin);
+  document.getElementById('l-tab-register').classList.toggle('active',!isLogin);
+  document.getElementById('l-form-login').classList.toggle('hidden',!isLogin);
+  document.getElementById('l-form-register').classList.toggle('hidden',isLogin);
+  document.getElementById('l-login-err').classList.remove('show');
+  document.getElementById('l-reg-err').classList.remove('show');
+}
+function setLandingAddr(type){
+  landingAddrType=type;
+  document.getElementById('l-btn-apt').classList.toggle('active',type==='apartment');
+  document.getElementById('l-btn-house').classList.toggle('active',type==='house');
+  document.getElementById('l-addr-apartment').classList.toggle('show',type==='apartment');
+  document.getElementById('l-addr-house').classList.toggle('show',type==='house');
+}
+
+function doLandingLogin(){
+  const id=document.getElementById('l-login-id').value.trim();
+  const pass=document.getElementById('l-login-pass').value.trim();
+  const errEl=document.getElementById('l-login-err');
+  // Check admin
+  if(id===ADMIN.login&&pass===ADMIN.pass){closeAuthPanel();showAdmin();return;}
+  // Check citizen by login or phone
+  const found=S.citizens.find(c=>(c.login===id||c.phone===id)&&c.pass===btoa(pass));
+  if(!found){errEl.classList.add('show');return;}
+  S.user=found;closeAuthPanel();enterPortal();
+}
+
+function doLandingRegister(){
+  const fname=document.getElementById('l-reg-fname').value.trim();
+  const lname=document.getElementById('l-reg-lname').value.trim();
+  const login=document.getElementById('l-reg-login').value.trim();
+  const phone=document.getElementById('l-reg-phone').value.trim();
+  const pass=document.getElementById('l-reg-pass').value.trim();
+  if(!fname||!lname||!login||!phone||pass.length<6){document.getElementById('l-reg-err').classList.add('show');return;}
+  // Check login uniqueness
+  if(S.citizens.find(c=>c.login===login)){document.getElementById('l-reg-err').textContent='Этот логин уже занят';document.getElementById('l-reg-err').classList.add('show');return;}
+  const addrData={};
+  if(landingAddrType==='apartment'){addrData.district=document.getElementById('l-reg-district').value;addrData.entrance=document.getElementById('l-reg-entrance').value;}
+  else{addrData.mahalla=document.getElementById('l-reg-mahalla').value.trim();addrData.street=document.getElementById('l-reg-street').value.trim();}
+  const user={id:Date.now(),fname,lname,login,phone,pass:btoa(pass),addrType:landingAddrType,addr:addrData,registered:new Date().toLocaleDateString('ru-RU')};
+  S.citizens.push(user);
+  localStorage.setItem('uz_citizens',JSON.stringify(S.citizens));
+  S.user=user;closeAuthPanel();enterPortal();
+}
+
+// ════════════════════════════════════════
+//  PORTAL MAP (LIGHT)
+// ════════════════════════════════════════
+const portalMap=L.map('map-portal',{zoomControl:false}).setView([41.2995,69.2401],13);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© CARTO',maxZoom:19}).addTo(portalMap);
+L.control.zoom({position:'bottomright'}).addTo(portalMap);
+
+const citizenIcon=L.divIcon({className:'',html:`<div style="width:12px;height:12px;border-radius:50%;background:#1f6feb;border:2px solid #fff;box-shadow:0 0 6px rgba(31,111,235,.6)"></div>`,iconSize:[12,12],iconAnchor:[6,6]});
+
+// Add incident markers to portal map
+let portalMarkers=[];
+incidents.forEach(inc=>{
+  const m=L.marker([inc.lat,inc.lng],{icon:createPIcon(inc.type)});
+  m.bindPopup(`<div class="popup-title">${inc.name}</div><span class="popup-tag" style="background:${mColors[inc.type]}18;color:${mColors[inc.type]}">${inc.type==='danger'?'⚠️ Опасно':inc.type==='warning'?'🔶 Внимание':'✅ Проверяется'}</span><div class="popup-desc">${inc.desc}</div>`);
+  m.addTo(portalMap);
+  portalMarkers.push({marker:m,incident:inc});
+});
+
+function createPIcon(type){
+  const emoji={danger:'⚠',warning:'🔶',safe:'✅'}[type]||'●';
+  return L.divIcon({className:'',html:`<div style="width:26px;height:26px;background:${mColors[type]};border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 1px 6px ${mColors[type]}66">${emoji}</div>`,iconSize:[26,26],iconAnchor:[13,13]});
+}
+
+function addPortalCitizenMarker(user){
+  let lat,lng;
+  const coords=districtCoords[user.addr&&user.addr.district];
+  if(coords){[lat,lng]=coords;lat+=(Math.random()-.5)*.01;lng+=(Math.random()-.5)*.01;}
+  else{lat=41.2995+(Math.random()-.5)*.1;lng=69.2401+(Math.random()-.5)*.1;}
+  const m=L.marker([lat,lng],{icon:citizenIcon}).addTo(portalMap);
+  m.bindPopup(`<b>${user.fname} ${user.lname}</b><br><span style="color:#64748b;font-size:12px">${user.phone}</span>`);
+}
+S.citizens.forEach(addPortalCitizenMarker);
+
+function enterPortal(){
+  document.getElementById('screen-landing').style.display='none';
+  document.getElementById('screen-portal').style.display='block';
+  document.body.style.overflow='hidden';
+  setTimeout(()=>{portalMap.invalidateSize();},150);
+  updatePortalUI();
+  focusUserNeighborhood();
+}
+
+function focusUserNeighborhood(){
+  const u=S.user;
+  if(!u)return;
+  const dist=u.addr&&(u.addr.district||u.addr.mahalla)||'—';
+  const coords=districtCoords[u.addr&&u.addr.district]||[41.2995,69.2401];
+  document.getElementById('neigh-name').textContent=dist;
+  document.getElementById('neigh-sub').textContent=u.addrType==='apartment'?'Квартирный сектор':'Частный сектор';
+  portalMap.setView(coords,15);
+  drawRadius(coords[0],coords[1],S.radius);
+  updateNeighStats(coords[0],coords[1],S.radius);
+}
+
+function drawRadius(lat,lng,r){
+  if(S.radiusCircle){portalMap.removeLayer(S.radiusCircle);}
+  S.radiusCircle=L.circle([lat,lng],{radius:r,color:'#1f6feb',fillColor:'#1f6feb',fillOpacity:.06,weight:2,dashArray:'6,4'}).addTo(portalMap);
+}
+
+function setRadius(r,btn){
+  S.radius=r;
+  document.getElementById('r500').classList.toggle('active',r===500);
+  document.getElementById('r1000').classList.toggle('active',r===1000);
+  const u=S.user;
+  const coords=districtCoords[u&&u.addr&&u.addr.district]||[41.2995,69.2401];
+  drawRadius(coords[0],coords[1],r);
+  updateNeighStats(coords[0],coords[1],r);
+}
+
+function updateNeighStats(lat,lng,r){
+  // Find incidents within radius
+  function dist(a,b,c,d){const R=6371000;const p=Math.PI/180;return R*Math.acos(Math.sin(a*p)*Math.sin(c*p)+Math.cos(a*p)*Math.cos(c*p)*Math.cos((d-b)*p));}
+  const nearby=incidents.filter(i=>dist(lat,lng,i.lat,i.lng)<=r);
+  const dangerCount=nearby.filter(i=>i.type==='danger').length;
+  const safeCount=nearby.filter(i=>i.type==='safe').length;
+  document.getElementById('neigh-danger').textContent=dangerCount;
+  document.getElementById('neigh-safe').textContent=safeCount;
+  const container=document.getElementById('neigh-incidents');
+  if(nearby.length===0){container.innerHTML='<div style="color:var(--p-text2);font-size:12px;text-align:center;padding:8px;">Нет данных в этом радиусе</div>';return;}
+  container.innerHTML=nearby.map(i=>`<div class="mini-incident" onclick="portalMap.flyTo([${i.lat},${i.lng}],16)"><div class="mini-dot" style="background:${mColors[i.type]}"></div><span class="mini-name">${i.name}</span><span class="mini-dist">${Math.round(dist(lat,lng,i.lat,i.lng))}м</span></div>`).join('');
+}
+
+function submitPortalReport(){
+  const loc=document.getElementById('p-inp-location').value.trim();
+  const type=document.getElementById('p-inp-type').value;
+  if(!loc||!type){showNotif('⚠ Заполните поля');return;}
+  const u=S.user;
+  const coords=districtCoords[u&&u.addr&&u.addr.district]||[41.2995,69.2401];
+  const lat=coords[0]+(Math.random()-.5)*.01;
+  const lng=coords[1]+(Math.random()-.5)*.01;
+  const m=L.marker([lat,lng],{icon:createPIcon(type)}).addTo(portalMap);
+  m.bindPopup(`<div class="popup-title">${loc}</div><span class="popup-tag" style="background:${mColors[type]}18;color:${mColors[type]}">Новая жалоба</span>`).openPopup();
+  incidents.unshift({id:incidents.length+1,name:loc,desc:'',type,time:'только что',lat,lng});
+  document.getElementById('p-inp-location').value='';
+  document.getElementById('p-inp-type').value='';
+  document.getElementById('portal-img-preview').classList.remove('show');
+  document.getElementById('portal-upload-text').style.display='block';
+  showNotif('✓ Сообщение отправлено!');
+  focusUserNeighborhood();
+}
+
+// ════════════════════════════════════════
+//  PORTAL UI
+// ════════════════════════════════════════
+function updatePortalUI(){
+  const u=S.user;
+  if(!u)return;
+  const ini=(u.fname[0]+u.lname[0]).toUpperCase();
+  document.getElementById('avatar-initials').textContent=ini;
+  document.getElementById('profile-btn-text').textContent=u.fname;
+}
+
+function openProfile(){renderProfile();openPanel('profile-panel');}
+function openPanel(id){document.getElementById(id).classList.add('show');}
+function closePanel(id){document.getElementById(id).classList.remove('show');}
+
+function renderProfile(){
+  const u=S.user;if(!u)return;
+  document.getElementById('pp-avatar').textContent=(u.fname[0]+u.lname[0]).toUpperCase();
+  document.getElementById('pp-name').textContent=u.fname+' '+u.lname;
+  let addrStr='';
+  if(u.addrType==='apartment'){addrStr=[u.addr.district?'Район: '+u.addr.district:'',u.addr.entrance?'Подъезд: '+u.addr.entrance:''].filter(Boolean).join(' · ');}
+  else{addrStr=[u.addr.mahalla?'Махалля: '+u.addr.mahalla:'',u.addr.street?'Улица: '+u.addr.street:''].filter(Boolean).join(' · ');}
+  document.getElementById('pp-info-grid').innerHTML=`
+    <div class="profile-info-row"><div class="profile-info-icon">👤</div><div><div class="profile-info-label">Логин</div><div class="profile-info-val">${u.login}</div></div></div>
+    <div class="profile-info-row"><div class="profile-info-icon">📱</div><div><div class="profile-info-label">Телефон</div><div class="profile-info-val">${u.phone}</div></div></div>
+    <div class="profile-info-row"><div class="profile-info-icon">🏘️</div><div><div class="profile-info-label">Тип жилья</div><div class="profile-info-val">${u.addrType==='apartment'?'🏠 Квартира':'🏡 Частный дом'}</div></div></div>
+    ${addrStr?`<div class="profile-info-row"><div class="profile-info-icon">📍</div><div><div class="profile-info-label">Адрес</div><div class="profile-info-val">${addrStr}</div></div></div>`:''}
+    <div class="profile-info-row"><div class="profile-info-icon">📅</div><div><div class="profile-info-label">Дата регистрации</div><div class="profile-info-val">${u.registered}</div></div></div>
+  `;
+}
+
+function doLogout(){
+  S.user=null;closePanel('profile-panel');
+  document.getElementById('screen-portal').style.display='none';
+  document.getElementById('screen-landing').style.display='block';
+  document.body.style.overflow='';
+  setTimeout(()=>landingMap.invalidateSize(),100);
+  showNotif('Вы вышли из системы');
+}
+
+function toggleMenu(){
+  S.menuOpen=!S.menuOpen;
+  document.getElementById('side-menu').classList.toggle('open',S.menuOpen);
+  document.getElementById('burger-btn').classList.toggle('active',S.menuOpen);
+  document.getElementById('overlay').style.display=S.menuOpen?'block':'none';
+}
+
+function setLang(lang){
+  S.lang=lang;
+  document.querySelectorAll('.lang-btn').forEach((b,i)=>b.classList.toggle('active',['uz','ru','en'][i]===lang));
+  showNotif(lang==='ru'?'Русский':lang==='uz'?"O'zbek tili":'English');
+}
+
+function showNotif(msg){
+  const el=document.getElementById('notif');
+  el.textContent=msg;el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+// ════════════════════════════════════════
+//  ADMIN
+// ════════════════════════════════════════
+let adminMap=null;
+
+function showAdmin(){
+  document.getElementById('screen-landing').style.display='none';
+  document.getElementById('screen-portal').style.display='none';
+  document.getElementById('screen-admin').style.display='block';
+  document.body.style.overflow='auto';
+  refreshAdminTables();
+}
+
+function adminLogout(){
+  document.getElementById('screen-admin').style.display='none';
+  document.getElementById('screen-landing').style.display='block';
+}
+
+function showAdminPage(id,btn){
+  document.querySelectorAll('.admin-page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.admin-nav button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(id==='admin-map')initAdminMap();
+}
+
+function refreshAdminTables(){
+  document.getElementById('adm-citizens-count').textContent=S.citizens.length;
+  // Recent incidents
+  const tbody=document.getElementById('adm-recent-tbody');
+  tbody.innerHTML=incidents.slice(0,6).map((i,idx)=>`<tr><td>${idx+1}</td><td>${i.name}</td><td><span class="status-badge sb-${i.type}">${i.type==='danger'?'⚠️ Опасно':i.type==='warning'?'🔶 Внимание':'✅ Проверка'}</span></td><td>${i.time}</td><td><button class="admin-action-btn">Просмотр</button><button class="admin-action-btn del">Удалить</button></td></tr>`).join('');
+  // All incidents
+  const itbody=document.getElementById('adm-incidents-tbody');
+  itbody.innerHTML=incidents.map((i,idx)=>`<tr><td>${idx+1}</td><td>${i.name}</td><td>${i.desc||'—'}</td><td><span class="status-badge sb-${i.type}">${i.type==='danger'?'⚠️ Опасно':i.type==='warning'?'🔶 Внимание':'✅ Проверка'}</span></td><td>${i.time}</td><td><button class="admin-action-btn del" onclick="deleteIncident(${i.id})">Удалить</button></td></tr>`).join('');
+  // Citizens
+  const ctbody=document.getElementById('adm-citizens-tbody');
+  if(S.citizens.length===0){ctbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--p-text2);padding:20px;">Нет зарегистрированных граждан</td></tr>';return;}
+  ctbody.innerHTML=S.citizens.map((c,idx)=>{
+    const addr=c.addrType==='apartment'?(c.addr.district||'—'):(c.addr.mahalla||'—');
+    return`<tr><td>${idx+1}</td><td>${c.fname} ${c.lname}</td><td><span class="status-badge sb-user">@${c.login}</span></td><td>${c.phone}</td><td>${addr}</td><td>${c.addrType==='apartment'?'🏠 Кв.':'🏡 Дом'}</td><td>${c.registered}</td><td><button class="admin-action-btn del" onclick="deleteCitizen(${c.id})">Удалить</button></td></tr>`;
+  }).join('');
+}
+
+function deleteIncident(id){
+  const idx=incidents.findIndex(i=>i.id===id);
+  if(idx>-1)incidents.splice(idx,1);
+  refreshAdminTables();
+  showNotif('Инцидент удалён');
+}
+function deleteCitizen(id){
+  const idx=S.citizens.findIndex(c=>c.id===id);
+  if(idx>-1)S.citizens.splice(idx,1);
+  localStorage.setItem('uz_citizens',JSON.stringify(S.citizens));
+  refreshAdminTables();
+  showNotif('Гражданин удалён');
+}
+
+function initAdminMap(){
+  const container=document.getElementById('admin-map-container');
+  if(adminMap){adminMap.remove();adminMap=null;}
+  container.innerHTML='<div id="admin-map-div" style="height:500px;border-radius:12px;border:1px solid var(--p-border);overflow:hidden;"></div>';
+  setTimeout(()=>{
+    adminMap=L.map('admin-map-div').setView([41.2995,69.2401],12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(adminMap);
+    incidents.forEach(inc=>{
+      L.marker([inc.lat,inc.lng],{icon:createLIcon(inc.type)}).bindPopup(`<b>${inc.name}</b><br>${inc.desc}`).addTo(adminMap);
+    });
+    S.citizens.forEach(addPortalCitizenMarker);
+  },100);
+}
+
+// Keyboard close
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeAuthPanel();closePanel('profile-panel');if(S.menuOpen)toggleMenu();}
+});
+</script>
+</body>
+</html>
